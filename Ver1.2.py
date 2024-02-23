@@ -1,13 +1,8 @@
-import pandas as pd
 from scipy.io import loadmat
 import mne
-import numpy as np
 from scipy.signal import iirnotch ,filtfilt, butter , sosfiltfilt
 import os
 from mne.preprocessing import ICA, corrmap, create_ecg_epochs, create_eog_epochs
-import PyQt5
-import darkdetect
-import mne_nirs
 import torch
 from networks import LGGNet
 from torch.utils.data import Dataset, DataLoader
@@ -15,77 +10,57 @@ import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 import functions as fn
+from EEG_fNIRS_Info import EEG_fNIRS_Info
+import midfunctions as mf
 
+eeg_dir = 'C:\\Users\\behtu\\URI_Backup\\1.NeuroLab\Database\\Auditory Oddball Data\\Shared_Oddball_Raw\\Mat Files\\HSO_00\\'
+hbr_address= 'C:\\Users\\behtu\\URI_Backup\\1.NeuroLab\\Database\\Auditory Oddball Data\\Shared_Oddball_Raw\\H_SO_00\\All_DeOx'
+hbo_address= 'C:\\Users\\behtu\\URI_Backup\\1.NeuroLab\\Database\\Auditory Oddball Data\\Shared_Oddball_Raw\\H_SO_00\\All_Ox'
 
-directory_path = 'C:\\Users\\behtu\\URI_Backup\\1.NeuroLab\Database\\Auditory Oddball Data\\Shared_Oddball_Raw\\Mat Files\\HSO_00\\'
-mat_files_data = fn.find_and_load_files(directory_path,'.mat')
-
-# Apply the notch filter to all datasets
-
-fs = 256  # Sample rate, Hz
+eeg_ch_numbers = [0,15] #Column numbers for the EEG data
+eeg_fs = 256  # Sample rate, Hz
 notch_freq = 60  # Notch frequency, Hz
 quality_factor = 30  # Quality factor
-# b_notch, a_notch = design_notch_filter(notch_freq, quality_factor, fs)
-# filtered_data_list = apply_notch_filter_to_data(mat_files_data, b_notch, a_notch, key='signal', channels=slice(0,15))
-
-# Apply the iir bandpass filter to all datasets
-
 lowcut = 0.5  # Low cut-off frequency, Hz
 highcut = 30  # High cut-off frequency, Hz
-# sos = design_bandpass_filter(lowcut, highcut, fs, order=4)
-# double_filtered_eeg_data = apply_iir_filter_to_data(filtered_data_list,sos, key='signal', channels=slice(0,15))
-# double_filtered_eeg_data.plot.line(subplots=True,figsize=(20,18))
-
-# Import the EEG data to MNE
+stimuluscode_no = 32 #StimulusCode Column number in the data
+stimuluscode = 'StimulusCode' #StimulusCode Column name in the data
 eeg_ch_names = [
             'Fpz','AFz','F5','F6','FCz','FC3','FC4','Cz','C5','C6','TTP7','TTP8','TPP7','TPP8','Pz'
-            ]
-raw_eeg_concatenated = fn.import_eeg_to_mne(mat_files_data, key='signal', 
-                                         channels=slice(0, 15),eeg_channels=eeg_ch_names,
-                                         stimulus='StimulusCode', stimulusCode=32, fs=256)
-fn.edit_eeg_raw_metadata(raw_eeg_concatenated, line_freq= 60, subject_id = 00, subject_sex = 'M',
-                          subject_hand = 1, exprimenter = 'NeuralPC Lab URI', experiment_description = 'Auditory Oddball Task')
+            ] #EEG channel names
+key = 'signal' #Key for the EEG data in the mat file
+fnirs_ch_names =[
+    'S1_D1','S2_D1', 'S2_D2', 'S3_D2', 'S4_D3', 'S4_D4', 'S4_D5', 'S5_D4', 'S5_D5', 'S6_D6', 'S6_D7','S6_D8', 'S7_D7','S7_D8'
+    ]
+fnirs_fs = 7.8125 # fNIRS sample rate
+source_locations = [ 'F3', 'Fz','F4','TP7','P5','TP8','P6'] #fNIRS source locations
+detector_locations = ['F1', 'F2','T7','CP5','P7','T8','CP6','P8'] #fNIRS detector locations
+subject_id = 00
+ica = True
+ica_exclude = [0,1]
 
-ica, raw_eeg_preprocessed =fn.preprocess_eeg(raw_eeg_concatenated, lowcut=0.5, highcut= 30, notch_freq=60, ica = True, method = 'infomax', exclude = [0,1], plot=False, start=100, stop=200)
-# Import the fNIRS data to MNE
-hbo_address= 'C:\\Users\\behtu\\URI_Backup\\1.NeuroLab\\Database\\Auditory Oddball Data\\Shared_Oddball_Raw\\H_SO_00\\All_Ox'
-hbo_data = fn.find_and_load_files(hbo_address,filetype='.txt')
-ch_names =['S1_D1','S2_D1', 'S2_D2', 'S3_D2', 'S4_D3', 'S4_D4', 'S4_D5', 'S5_D4', 'S5_D5', 'S6_D6', 'S6_D7','S6_D8', 'S7_D7','S7_D8']
-raw_hbo_combined = fn.import_fnirs_to_mne(hbo_data,type= 'hbo',ch_names= ch_names, fs=7.8125)
 
-# Importing the Hbr data
-hbr_address= 'C:\\Users\\behtu\\URI_Backup\\1.NeuroLab\\Database\\Auditory Oddball Data\\Shared_Oddball_Raw\\H_SO_00\\All_DeOx'
-hbr_data = fn.find_and_load_files(hbr_address,filetype='.txt')
-raw_hbr_combined = fn.import_fnirs_to_mne(hbr_data,type= 'hbr',ch_names= ch_names, fs=7.8125)
 
-# Merging EEG and fNIRS data
-raw_combined = fn.merging_eeg_fnirs(raw_eeg_preprocessed, raw_hbo_combined, raw_hbr_combined)
-# Set the montage for the combined data
-sources = {'S1': 'F3', 'S2': 'Fz', 'S3':'F4','S4':'TP7','S5':'P5','S6':'TP8','S7':'P6'}
-detectors = {'D1': 'F1', 'D2': 'F2','D3':'T7','D4':'CP5','D5':'P7','D6':'T8','D7':'CP6','D8':'P8'}
-fn.set_combined_montage(montage = 'standard_1005', sources = sources, detectors = detectors)
-fn.edit_eeg_raw_metadata(raw_combined, line_freq= 60, subject_id = 00, subject_sex = 'M',
-                          subject_hand = 1, exprimenter = 'NeuralPC Lab URI', experiment_description = 'Auditory Oddball Task')
+info_ef = EEG_fNIRS_Info(eeg_dir= eeg_dir, eeg_ch_names= eeg_ch_names, eeg_ch_numbers= eeg_ch_numbers,eeg_key = key ,
+                  eeg_stimulus_name=stimuluscode, eeg_stimulus_no=stimuluscode_no, eeg_lowcut=lowcut, eeg_highcut=highcut, eeg_notch=notch_freq, eeg_fs=eeg_fs, 
+                  hbo_dir=hbo_address, hbr_dir=hbr_address, hbo_fs=fnirs_fs, hbr_fs=fnirs_fs, hbo_lowcut=None, hbr_lowcut=None,  
+                  source_locations=source_locations, detector_locations=detector_locations,
+                  hbo_highcut=None, hbr_highcut=None, hbo_ch_names=fnirs_ch_names, hbr_ch_names=fnirs_ch_names, ica = ica, ica_exclude = ica_exclude,
+                  subject_id = subject_id, subject_sex = 'M',subject_hand = 'right', exprimenter = 'NeuralPC Lab URI', experiment_description = 'Auditory Oddball Task' )
 
-# Epoching combined data
-picks = mne.pick_types(raw_combined.info, meg=False, eeg=True, stim=False,fnirs=True, eog=False)
+raw_combined = mf.import_data(info=info_ef)
+
+
 event_id = dict(deviant40=2,standard1k=1)
 mapping={2:'deviant40',1:'standard1k'}
-epochs_combined, labels = fn.epocking(raw_combined,tmin = -0.5, tmax = 1.5, event_id = event_id, mapping = mapping,stim_channel=['StimulusCode'],picks = picks)
+picks = mne.pick_types(raw_combined.info, eeg=True, eog=False, stim=False, exclude='bads')
+tmin =-0.5
+tmax = 1.5
 
+epochs_concat, labels , number_of_channels, input_length, Number_trials_per_class = mf.epock_data(raw_combined, tmin =tmin, tmax =tmax, event_id =event_id, mapping = mapping, stim=info_ef.eeg_stimulus_name, picks=picks,fs=info_ef.eeg_fs)
 
+dataset = mf.create_dataset(epochs_concat, labels, Number_trials_per_class, number_of_channels, input_length)
 
-class_deviant =epochs_combined["deviant40"]#.drop_channels("StimulusCode")
-class_standard =epochs_combined["standard1k"][np.random.randint(0,735,120)]#.drop_channels("StimulusCode")
-# making a lable vector
-labels = np.zeros(len(class_deviant.events) + len(class_standard.events), int)
-labels[0:len(class_deviant)] = 0
-labels[len(class_deviant):240] = 1
-print(labels)
-print(labels.shape)
-#concatenate the epochs
-epochs_concat = np.vstack([class_deviant, class_standard])
-epochs_concat.astype(float)
 
 # Define the graph
 original_order = raw_combined.ch_names
@@ -108,8 +83,8 @@ for i in range(len(graph_idx)):
 
 LGG = LGGNet(
     num_classes=2,
-    input_size=(1, 43, 513),
-    sampling_rate=256,
+    input_size=(1, number_of_channels, input_length),
+    sampling_rate=info_ef.eeg_fs,
     num_T=4,  # num_T controls the number of temporal filters
     out_graph=39,
     pool=16,
@@ -118,46 +93,27 @@ LGG = LGGNet(
     dropout_rate=0.5
 ).to('cuda')
 
-class EEGDataset(Dataset):
-    def __init__(self, data, labels):
-        self.data = data.astype('float32')  # Your EEG data, shaped (N, 1, 43, data_points) where N is the number of epochs
-        self.data = torch.from_numpy(self.data)
-        self.data = self.data.unsqueeze(0).unsqueeze(0)
-        self.data = self.data.to('cuda')
-        self.labels = labels.astype('float')
-        self.labels = torch.from_numpy(labels)  # Corresponding labels for each epoch
-    
-        self.labels = self.labels.to('cuda')
+#%%
+criterion = nn.CrossEntropyLoss()#LabelSmoothing(smoothing=0.1) #
+optimizer = optim.Adam(LGG.parameters(), lr=0.001)  # Adjust learning rate as needed
 
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        return self.data[idx], self.labels[idx]
-
-epochs_concat = epochs_concat.astype(float)
-dataset = EEGDataset(epochs_concat, labels)
-
-dataset.data = dataset.data.reshape(240,1,43,513)
-
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(LGG.parameters(), lr=0.0001)  # Adjust learning rate as needed
-
-
-train_size = int(0.75 * len(dataset))  # 75% of the dataset size
+train_size = int(0.80 * len(dataset))  # 75% of the dataset size
 val_size =  int(0.15 * len(dataset))   # 15% for validation
-test_size =  int(0.10 * len(dataset))  # 10% for testing
+test_size =  int(0.05 * len(dataset))  # 10% for testing
 
 # Splitting the dataset
 generator1 = torch.Generator().manual_seed(42)
 train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size,test_size], generator=generator1)
 
 # Creating DataLoaders for both training and validation sets
-train_loader = DataLoader(train_dataset,batch_size=10, shuffle=True) 
-val_loader = DataLoader(val_dataset,batch_size=10, shuffle=False) 
+train_loader = DataLoader(train_dataset,batch_size=2, shuffle=True) 
+val_loader = DataLoader(val_dataset,batch_size=2, shuffle=False) 
 test_loader = DataLoader(test_dataset, shuffle=False)
 
-num_epochs = 40
+
+#%%
+
+num_epochs = 1000
 #Training the model
 for epoch in range(num_epochs):
     print(f'Epoch {epoch}')
@@ -165,7 +121,7 @@ for epoch in range(num_epochs):
     pred_train = []
     act_train = []
     for data, label in train_loader:
-        # data = data.unsqueeze(0)
+        
         label = label.long()
         outputs = LGG(data)
         loss = criterion(outputs, label)
@@ -175,23 +131,23 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        print(f'Loss: {loss.item()}')
-        
+        #print(f'Loss: {loss.item()}')
+       
         # Validation step
-        LGG.eval()
-        with torch.no_grad():
-            val_loss = 0
-            correct = 0
-            total = 0
-            for input, label in val_loader:
-                label = label.long()
-                outputs = LGG(input)
-                val_loss += criterion(outputs, label).item()
-                _, predicted = torch.max(outputs.data, 1)
-                total += label.size(0)
-                correct += (predicted == label).sum().item()
-            print(f'Epoch {epoch}, Validation Loss: {val_loss / total}, Accuracy: {correct / total * 100}%')
-        
+    LGG.eval()
+    with torch.no_grad():
+        val_loss = 0
+        correct = 0
+        total = 0
+        for input, label in val_loader:
+            label = label.long()
+            outputs = LGG(input)
+            val_loss += criterion(outputs, label).sum().item()
+            _, predicted = torch.max(outputs, 1)
+            total += label.size(0)
+            correct += (predicted == label).sum().item()
+        print(f'Epoch {epoch}, Validation Loss: {val_loss / total}, Accuracy: {correct / total * 100}%')
+
 # Test step
 LGG.eval()
 with torch.no_grad():
@@ -206,3 +162,27 @@ with torch.no_grad():
         total += label.size(0)
         correct += (predicted == label).sum().item()
     print(f'Test Loss: {test_loss / total}, Accuracy: {correct / total * 100}%')
+
+
+
+
+
+class LabelSmoothing(nn.Module):
+        """NLL loss with label smoothing.
+        refer to: https://github.com/NVIDIA/DeepLearningExamples/blob/8d8b21a933fff3defb692e0527fca15532da5dc6/PyTorch/Classification/ConvNets/image_classification/smoothing.py#L18
+        """
+        def __init__(self, smoothing=0.0):
+            """Constructor for the LabelSmoothing module.
+            :param smoothing: label smoothing factor
+            """
+            super(LabelSmoothing, self).__init__()
+            self.confidence = 1.0 - smoothing
+            self.smoothing = smoothing
+
+        def forward(self, x, target):
+            logprobs = torch.nn.functional.log_softmax(x, dim=-1)
+            nll_loss = -logprobs.gather(dim=-1, index=target.unsqueeze(1))
+            nll_loss = nll_loss.squeeze(1)
+            smooth_loss = -logprobs.mean(dim=-1)
+            loss = self.confidence * nll_loss + self.smoothing * smooth_loss
+            return loss.mean()
