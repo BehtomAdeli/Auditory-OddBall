@@ -1,14 +1,15 @@
 class EEG_fNIRS_Info:
     def __init__(self, eeg_dir=None, eeg_ch_names=None, eeg_ch_numbers=None,eeg_key = None ,
-                  eeg_stimulus=None, eeg_lowcut=None, eeg_highcut=None, eeg_notch=None, eeg_fs=None, 
+                  eeg_stimulus_no=None,eeg_stimulus_name=None, eeg_lowcut=None, eeg_highcut=None, eeg_notch=None, eeg_fs=None, 
                   hbo_dir=None, hbr_dir=None, hbo_fs=None, hbr_fs=None, hbo_lowcut=None, hbr_lowcut=None,  source_locations=None, detector_locations=None,
-                  hbo_highcut=None, hbr_highcut=None, hbo_ch_names=None, hbr_ch_names=None,
+                  hbo_highcut=None, hbr_highcut=None, hbo_ch_names=None, hbr_ch_names=None, ica = None, ica_exclude = None,
                   subject_id = 00, subject_sex = 'M',subject_hand = 'right', exprimenter = 'NeuralPC Lab URI', experiment_description = 'Auditory Oddball Task'):
         self.eeg_dir = eeg_dir
         self.eeg_ch_names = eeg_ch_names
         self.eeg_ch_numbers = slice(eeg_ch_numbers[0],eeg_ch_numbers[1],1) if eeg_ch_numbers is not None else [1,15]
         self.eeg_key = eeg_key
-        self.eeg_stimulus = eeg_stimulus
+        self.eeg_stimulus_no = eeg_stimulus_no
+        self.eeg_stimulus_name = eeg_stimulus_name
         self.eeg_lowcut = eeg_lowcut
         self.eeg_highcut = eeg_highcut
         self.eeg_notch = eeg_notch
@@ -24,12 +25,14 @@ class EEG_fNIRS_Info:
         self.hbo_ch_names = hbo_ch_names
         self.hbr_ch_names = hbr_ch_names
         self.sources = self.set_fnirs_source_locations(source_locations)
-        self.detectors = self.set_fnirs_source_locations(detector_locations)
+        self.detectors = self.set_fnirs_detector_locations(detector_locations)
         self.subject_id = subject_id
         self.subject_sex = subject_sex
         self.subject_hand = self.set_hand(subject_hand)
         self.exprimenter = exprimenter
         self.experiment_description = experiment_description
+        self.ica = ica
+        self.ica_exclude = ica_exclude
     
     # EEG Setters
     def set_eeg_dir(self, value):
@@ -164,9 +167,17 @@ class EEG_fNIRS_Info:
         return detector_dict
     
     def set_hand(self,hand):
-        if hand.lower() == 'right':
-            return 1
-        elif hand.lower() == 'left':
-            return 0
-        else:
-            return 1
+        if isinstance(hand,str):
+            if hand.lower() == 'right':
+                return 1
+            elif hand.lower() == 'left':
+                return 0
+            else:
+                return 1
+        elif isinstance(hand,int):
+            if hand == 1:
+                return 1
+            elif hand == 0:
+                return 0
+            else:
+                return 1

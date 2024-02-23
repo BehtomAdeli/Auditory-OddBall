@@ -270,11 +270,12 @@ def preprocess_eeg(raw, lowcut=None, highcut=None, notch_freq=None,ica = True, m
             f"Fraction of variance in EEG signal explained by first component: "
             f"{ratio_percent}%"
         )
+        if exclude is not None:
+            ica.exclude = exclude
+            ica.apply(raw)
     if plot:
         ica.plot_sources(raw, show_scrollbars=False,start =start , stop = stop);
-    if exclude is not None:
-        ica.exclude = exclude
-        ica.apply(raw)
+    
     return ica , raw
 
 def import_fnirs_to_mne(txt_data,type= 'hbo',ch_names= [any],lowcut=None,highcut=None,notch_freq=None,plot = False, plot_duration=100, fs=7.8125):
@@ -325,7 +326,7 @@ def import_fnirs_to_mne(txt_data,type= 'hbo',ch_names= [any],lowcut=None,highcut
     return raw_fnirs_concatenated
 
 # Edit eeg raw file metadata
-def edit_eeg_raw_metadata(raw, line_freq= None, subject_id = None, subject_sex = None, subject_birthday = None,
+def edit_raw_metadata(raw, line_freq= None, subject_id = None, subject_sex = None, subject_birthday = None,
                           subject_hand = None, exprimenter = None, experiment_date = None, experiment_time = None, experiment_description = None):
     """
     Edit the metadata of an MNE Raw object.
@@ -422,7 +423,7 @@ def merging_eeg_fnirs(raw_eeg, raw_hbo, raw_hbr):
 
     return raw_combined
 
-def set_combined_montage(montage = 'standard_1005', sources = None, detectors = None):
+def set_combined_montage(montage = 'standard_1005', sources = None, detectors = None,eeg_ch_names = [any]):
     # Combine the info objects from both datasets, making sure to update the channel names to avoid duplicates
     # This might require modifying the channel names of the fNIRS data
     # Define your source and detector names and positions
@@ -438,12 +439,24 @@ def set_combined_montage(montage = 'standard_1005', sources = None, detectors = 
     source_positions = {s: standard_montage.get_positions()['ch_pos'][loc] for s, loc in sources.items()}
     detector_positions = {d: standard_montage.get_positions()['ch_pos'][loc] for d, loc in detectors.items()}
 
+    eeg_coords={}        
+    for channel in eeg_ch_names:
+        if channel in standard_montage.ch_names:
+            # Get the index of the EEG label in the standard montage
+            idx = standard_montage.ch_names.index(channel)
+            # Use this index to get the 3D coordinates from the standard montage
+            coord = standard_montage.dig[idx+3]['r']  # Offset by 3 to skip the fiducials
+            # Assign these coordinates to your NIRS channel
+            eeg_coords[channel] = coord
+        else:
+            print("Label not found in standard montage.")
+
     # Combine source and detector positions
-    montage_positions = {**source_positions, **detector_positions}
+    montage_positions = {**source_positions, **detector_positions,**eeg_coords}
     mne.channels.make_dig_montage(ch_pos=montage_positions,nasion=(0, 0.1, 0), lpa=(-0.1, 0, 0), rpa=(0.1, 0, 0), coord_frame='head')
     print(montage_positions)
 
-def epocking(tmin = -0.5, tmax = 1.5, event_id = None, mapping = None, stim_channel=['StimulusCode'], picks = None):
+def epocking(raw_combined = any, tmin = -0.5, tmax = 1.5, event_id = None, mapping = None, stim_channel=['StimulusCode'], picks = None):
     """
     Epoch the combined data.
 
@@ -492,3 +505,5 @@ def epocking(tmin = -0.5, tmax = 1.5, event_id = None, mapping = None, stim_chan
     labels = epochs.events[:, -1]
     
     return epochs, labels
+
+
