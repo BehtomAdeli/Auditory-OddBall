@@ -1,7 +1,39 @@
 class EEG_fNIRS_Info:
-    def __init__(self, eeg_dir=None, eeg_ch_names=None, eeg_ch_numbers=None,eeg_key = None ,
-                  eeg_stimulus_no=None,eeg_stimulus_name=None, eeg_lowcut=None, eeg_highcut=None, eeg_notch=None, eeg_fs=None, 
-                  hbo_dir=None, hbr_dir=None, hbo_fs=None, hbr_fs=None, hbo_lowcut=None, hbr_lowcut=None,  source_locations=None, detector_locations=None,
+    """
+    Class to store information about the EEG and fNIRS data. This would make it easy to work with the data and pass the information to the MNE and PyTorch functions.
+
+    Attributes:
+    eeg_dir (str): Directory of the EEG data. The default is None. A path to the EEG data should be provided otherwise an error will be raised in the processing pipeline.
+    eeg_ch_names (list): List of EEG channel names. The default is None. Please provide the correct channel names Otherwise random naming will be used and it would lead to location confusion. E.g. ['Fpz','AFz','F5','F6','FCz','FC3','FC4','Cz','C5','C6','TTP7','TTP8','TPP7','TPP8','Pz']
+    eeg_ch_numbers (list): List of EEG channel numbers. The default is None. Please provide the correct channel numbers Otherwise All the columns in the 'Key' will be used. iF EEG data is not the whole data specify this. E.g. [1,15]
+    eeg_key (str): Key to access the EEG data. The default is 'signal'. Please provide the correct key to access the EEG data in the mat file. This is the sub-structure of Mat-file that contains the EEG data.
+    eeg_stimulus_no (int): Number of stimuli in the EEG data. The default is column number 32. Please provide the correct column number of stimuli in the EEG data.
+    eeg_stimulus_name (str): Name of the stimuli in the EEG data. The default is 'StimulusCode'. Please provide the correct name of the stimuli in the EEG data.
+    eeg_lowcut (float): Low cut frequency for the EEG data. The default is None. If a low cut frequency is not provided, the data will not be filtered.
+    eeg_highcut (float): High cut frequency for the EEG data. The default is None. If a high cut frequency is not provided, the data will not be filtered.
+    eeg_notch (float): Notch filter frequency for the EEG data. The default is None. If a notch filter frequency is not provided, the data will not be filtered. Normal 
+    eeg_fs (int): Sampling frequency of the EEG data. The default is 256 Hz. Please provide the correct sampling frequency of the EEG data if that is different from the default value.
+    hbo_dir (str): Directory of the HbO data. The default is None. A path to the HbO data should be provided otherwise an error will be raised in the processing pipeline.
+    hbr_dir (str): Directory of the HbR data. The default is None. A path to the HbR data should be provided otherwise an error will be raised in the processing pipeline.
+    hbo_fs (int): Sampling frequency of the HbO data. The default is 7.8125 Hz. Please provide the correct sampling frequency of the HbO data if that is different from the default value.
+    hbr_fs (int): Sampling frequency of the HbR data. The default is 7.8125 Hz. Please provide the correct sampling frequency of the HbR data if that is different from the default value.
+    hbo_lowcut (float): Low cut frequency for the HbO data. The default is None. If a low cut frequency is not provided, the data will not be filtered.
+    hbr_lowcut (float): Low cut frequency for the HbR data. The default is None. If a low cut frequency is not provided, the data will not be filtered.
+    hbo_highcut (float): High cut frequency for the HbO data. The default is None. If a high cut frequency is not provided, the data will not be filtered.
+    hbr_highcut (float): High cut frequency for the HbR data. The default is None. If a high cut frequency is not provided, the data will not be filtered.
+    hbo_ch_names (list): List of HbO channel names. The default is None. Please provide the correct channel names Otherwise random naming will be used and it would lead to location confusion. Itshould be "S#-D#" formant for each channel. Like "S1-D1" for the channel related to Source 1 to Detector 1.
+    hbr_ch_names (list): List of HbR channel names. The default is None. Please provide the correct channel names Otherwise random naming will be used and it would lead to location confusion.
+    sources (dict): Dictionary of fNIRS source locations. A dictionary with the source names as keys and the source locations as values. The default is None. Please provide the correct source locations E.g. Dict('S1': 'F3', 'S2': 'Fz', 'S3': 'F4', 'S4': 'TP7', 'S5': 'P5', 'S6': 'TP8', 'S7': 'P6')
+    detectors (dict): Dictionary of fNIRS detector locations. A dictionary with the detector names as keys and the detector locations as values. The default is None. Please provide the correct detector locations E.g. Dict('D1': 'F1', 'D2': 'F2', 'D3': 'T7', 'D4': 'CP5', 'D5': 'P7', 'D6': 'T8', 'D7': 'CP6', 'D8': 'P8')
+    subject_id (int): ID of the subject. The default is 00. Please provide the correct subject ID. (Folder name of the subject data. E.g. 01, 02, 03, etc.)
+    exprimenter (str): Name of the experimenter. The default is 'NeuralPC Lab URI'. Please provide the correct name of the experimenter.
+    experiment_description (str): Description of the experiment. The default is 'Auditory Oddball Task'. Please provide the correct description of the experiment.
+
+    Behtom Adeli, 2025 NeuralPC Lab URI
+    """
+    def __init__(self, eeg_dir=None, eeg_ch_names=None, eeg_ch_numbers=None,eeg_key = 'signal' ,
+                  eeg_stimulus_no=32,eeg_stimulus_name='StimulusCode', eeg_lowcut=None, eeg_highcut=None, eeg_notch=None, eeg_fs=256, 
+                  hbo_dir=None, hbr_dir=None, hbo_fs=7.8125, hbr_fs=7.8125, hbo_lowcut=None, hbr_lowcut=None,  source_locations=None, detector_locations=None,
                   hbo_highcut=None, hbr_highcut=None, hbo_ch_names=None, hbr_ch_names=None, ica = None, ica_exclude = None,
                   subject_id = 00, subject_sex = 'M',subject_hand = 'right', exprimenter = 'NeuralPC Lab URI', experiment_description = 'Auditory Oddball Task'):
         self.eeg_dir = eeg_dir
