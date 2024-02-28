@@ -51,7 +51,7 @@ def import_data(info=EEG_fNIRS_Info):
     return raw_combined
 
 
-def epock_data(raw_combined, tmin =None, tmax =None, event_id =None, mapping = None, stim="StimulusCode", picks=None,fs=None):
+def epoch_data(raw_combined, tmin =None, tmax =None, event_id =None, mapping = None, stim="StimulusCode", picks=None,fs=None):
     # Epoching the combined data
     # 
     # Parameters
@@ -80,14 +80,15 @@ def epock_data(raw_combined, tmin =None, tmax =None, event_id =None, mapping = N
     # 
     # 
     # Epoching combined data
-    epochs_combined, all_labels = fn.epocking(raw_combined,tmin = tmin, tmax = tmax, event_id = event_id, mapping = mapping,stim_channel=stim,picks = picks)
+
+    epochs_combined, all_labels = fn.epoching(raw_combined,tmin = tmin, tmax = tmax, event_id = event_id, mapping = mapping,picks = picks)
     all_labels = all_labels - 1
     label_zeros = all_labels[all_labels == 0]
     label_ones = all_labels[all_labels == 1]
     Number_trials_per_class = epochs_combined['deviant40'].__len__()
     Number_trials_standard = epochs_combined['standard1k'].__len__()
     number_of_channels = epochs_combined.ch_names.__len__()
-    input_length = ((epochs_combined['deviant40'].tmax - epochs_combined['deviant40'].tmin)*info_ef.eeg_fs + 1).astype(int)
+    input_length = ((epochs_combined['deviant40'].tmax - epochs_combined['deviant40'].tmin)*raw_combined.info['sfreq'] + 1).astype(int)
     class_deviant =epochs_combined["deviant40"]
     random_choose = np.random.randint(0,Number_trials_standard,Number_trials_per_class)
     class_standard =epochs_combined["standard1k"][random_choose]    #.drop_channels("StimulusCode")
@@ -97,42 +98,24 @@ def epock_data(raw_combined, tmin =None, tmax =None, event_id =None, mapping = N
     epochs_concat = np.vstack([class_deviant, class_standard])
     epochs_concat.astype(float)
     labels = np.hstack((label_ones,label_zeros_needed))
-    print(labels)
+    #print(labels)
     print(labels.shape)
 
     return epochs_concat, labels,number_of_channels, input_length, Number_trials_per_class
 
-def create_dataset(epochs_concat, labels, Number_trials_per_class, number_of_channels, input_length):
-    # Creating the dataset
-    # 
-    # Parameters
-    # ----------
-    # epochs_concat : np.array
-    #     The concatenated epochs
-    # labels : np.array
-    #     The labels of the epochs
-    # Number_trials_per_class : int
-    #     The number of trials per class
-    # number_of_channels : int
-    #     The number of channels
-    # input_length : int
-    #     The length of the input
-    # 
-    # Returns
-    # -------
-    # dataset : EEGDataset
-    #     The dataset containing the EEG data and the labels
-    # 
-    epochs_concat = epochs_concat.astype(float)
-    dataset = EEGDataset(epochs_concat, labels)
-    dataset.data = dataset.data.reshape(Number_trials_per_class*2,1,number_of_channels,input_length)
-
-    class EEGDataset(Dataset):
+def create_dataset(epochs_concat, labels, lggnet_params=None):
+    """
+    This function creates a dataset from the concatenated epochs and labels
+    :param epochs_concat: The concatenated epochs
+    :param labels: The labels of the epochs
+    :param lggnet_params: The parameters of the LGGNet model
+    :return: dataset
+    """
+    class EEGDataset():
         def __init__(self, data, labels):
             self.data = data.astype('float32')  # Your EEG data, shaped (N, 1, 43, data_points) where N is the number of epochs
             self.data = torch.from_numpy(self.data)
             self.data = self.data.unsqueeze(0)
-
             self.data = self.data.to('cuda')
             self.labels = labels.astype('float')
             self.labels = torch.from_numpy(labels)  # Corresponding labels for each epoch
@@ -144,6 +127,10 @@ def create_dataset(epochs_concat, labels, Number_trials_per_class, number_of_cha
 
         def __getitem__(self, idx):
             return self.data[idx], self.labels[idx]
+          
+    epochs_concat = epochs_concat.astype(float)
+    dataset = EEGDataset(epochs_concat, labels)
+    dataset.data = dataset.data.reshape(lggnet_params['number_trials_per_class']*2,1,lggnet_params['number_of_channels'], lggnet_params['input_length'])
 
     return dataset
 

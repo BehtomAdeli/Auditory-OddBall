@@ -36,6 +36,7 @@ class EEG_fNIRS_Info:
                   hbo_dir=None, hbr_dir=None, hbo_fs=7.8125, hbr_fs=7.8125, hbo_lowcut=None, hbr_lowcut=None,  source_locations=None, detector_locations=None,
                   hbo_highcut=None, hbr_highcut=None, hbo_ch_names=None, hbr_ch_names=None, ica = None, ica_exclude = None,
                   subject_id = 00, subject_sex = 'M',subject_hand = 'right', exprimenter = 'NeuralPC Lab URI', experiment_description = 'Auditory Oddball Task'):
+        
         self.eeg_dir = eeg_dir
         self.eeg_ch_names = eeg_ch_names
         self.eeg_ch_numbers = slice(eeg_ch_numbers[0],eeg_ch_numbers[1],1) if eeg_ch_numbers is not None else [1,15]
@@ -59,7 +60,7 @@ class EEG_fNIRS_Info:
         self.sources = self.set_fnirs_source_locations(source_locations)
         self.detectors = self.set_fnirs_detector_locations(detector_locations)
         self.subject_id = subject_id
-        self.subject_sex = subject_sex
+        self.subject_sex = self.set_subject_sex(subject_sex)
         self.subject_hand = self.set_hand(subject_hand)
         self.exprimenter = exprimenter
         self.experiment_description = experiment_description
@@ -211,5 +212,21 @@ class EEG_fNIRS_Info:
                 return 1
             elif hand == 0:
                 return 0
+            else:
+                return 1
+            
+    def set_sex(subject_sex):
+        if isinstance(subject_sex,str):
+            if subject_sex.lower() == 'm':
+                return 1
+            elif subject_sex.lower() == 'f':
+                return 2
+            else:
+                return 1
+        elif isinstance(subject_sex,int):
+            if subject_sex == 1:
+                return 1
+            elif subject_sex == 2:
+                return 2
             else:
                 return 1

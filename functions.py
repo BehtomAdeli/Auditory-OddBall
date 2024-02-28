@@ -5,7 +5,7 @@ import numpy as np
 from scipy.signal import iirnotch ,filtfilt, butter , sosfiltfilt
 import os
 from mne.preprocessing import ICA
-
+from netfunctions import *
 # Importing Data
 def find_and_load_files(directory,filetype):
     """
@@ -456,7 +456,7 @@ def set_combined_montage(montage = 'standard_1005', sources = None, detectors = 
     mne.channels.make_dig_montage(ch_pos=montage_positions,nasion=(0, 0.1, 0), lpa=(-0.1, 0, 0), rpa=(0.1, 0, 0), coord_frame='head')
     print(montage_positions)
 
-def epocking(raw_combined = any, tmin = -0.5, tmax = 1.5, event_id = None, mapping = None, stim_channel=['StimulusCode'], picks = None):
+def epoching(raw_combined = any, tmin = -0.5, tmax = 1.5, event_id = None, mapping = None, picks = None):
     """
     Epoch the combined data.
 
@@ -490,7 +490,7 @@ def epocking(raw_combined = any, tmin = -0.5, tmax = 1.5, event_id = None, mappi
                  1:'standard1k'
                 }
     #raw.set_eeg_reference("average")
-    events = mne.find_events(raw_combined, stim_channel=stim_channel)
+    events = mne.find_events(raw_combined, stim_channel='StimulusCode')
     onsets = events[:, 0] / raw_combined.info['sfreq']
     durations = np.zeros_like(onsets) 
     descriptions = [mapping[event_id] for event_id in events[:, 2]]
