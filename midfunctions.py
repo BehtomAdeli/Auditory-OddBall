@@ -51,7 +51,7 @@ def import_data(info=EEG_fNIRS_Info):
     return raw_combined
 
 
-def epoch_data(raw_combined, tmin =None, tmax =None, event_id =None, mapping = None, stim="StimulusCode", picks=None,fs=None):
+def epoch_data(raw_combined, tmin =None, tmax =None, event_id =None, mapping = None, stim="StimulusCode", picks=None,fs=None,mapping_fnirs=None,threeD=False):
     # Epoching the combined data
     # 
     # Parameters
@@ -81,16 +81,22 @@ def epoch_data(raw_combined, tmin =None, tmax =None, event_id =None, mapping = N
     # 
     # Epoching combined data
 
+    if threeD:
+        if mapping_fnirs == None:
+            mapping_fnirs = [2, 1, 4, 3, 8, 13, 9, 6, 11, 5, 10, 7, 12, 14]
+        else:
+            raw_combined = rearrange_channels(raw_combined, mapping_fnirs)
+    np.random.seed(42)
     epochs_combined, all_labels = fn.epoching(raw_combined,tmin = tmin, tmax = tmax, event_id = event_id, mapping = mapping,picks = picks)
     all_labels = all_labels - 1
     label_zeros = all_labels[all_labels == 0]
     label_ones = all_labels[all_labels == 1]
-    Number_trials_per_class = epochs_combined['deviant40'].__len__()
-    Number_trials_standard = epochs_combined['standard1k'].__len__()
+    trials_per_class = epochs_combined['deviant40'].__len__()
+    trials_standard = epochs_combined['standard1k'].__len__()
     number_of_channels = epochs_combined.ch_names.__len__()
     input_length = ((epochs_combined['deviant40'].tmax - epochs_combined['deviant40'].tmin)*raw_combined.info['sfreq'] + 1).astype(int)
     class_deviant =epochs_combined["deviant40"]
-    random_choose = np.random.randint(0,Number_trials_standard,Number_trials_per_class)
+    random_choose = get_random_choose(0,7,trials_per_class,trials_standard,seed=42)
     class_standard =epochs_combined["standard1k"][random_choose]    #.drop_channels("StimulusCode")
     label_zeros_needed=label_zeros[random_choose]
         
@@ -99,11 +105,25 @@ def epoch_data(raw_combined, tmin =None, tmax =None, event_id =None, mapping = N
     epochs_concat.astype(float)
     labels = np.hstack((label_ones,label_zeros_needed))
     #print(labels)
-    print(labels.shape)
+    print("number of trials per class:",labels.shape[0]/2)
 
-    return epochs_concat, labels,number_of_channels, input_length, Number_trials_per_class
+    return epochs_concat, labels,number_of_channels, input_length, trials_per_class
 
-def create_dataset(epochs_concat, labels, lggnet_params=None):
+def get_random_choose(start, end, trials_per_class,max, seed=42):
+    
+    np.random.seed(seed=seed)
+    random_choose = np.random.randint(start,end,trials_per_class)
+    cumulative_sum = []
+    current_sum = 0
+
+    for i,  num in enumerate(random_choose):
+        
+        current_sum = num +i*np.random.randint(6,7,1)[0]
+        cumulative_sum.append(current_sum)
+
+    return cumulative_sum
+
+def create_dataset(epochs_concat, labels, lggnet_params=None,threeD=False):
     """
     This function creates a dataset from the concatenated epochs and labels
     :param epochs_concat: The concatenated epochs
@@ -113,15 +133,17 @@ def create_dataset(epochs_concat, labels, lggnet_params=None):
     """
     class EEGDataset():
         def __init__(self, data, labels):
-            self.data = data.astype('float32')  # Your EEG data, shaped (N, 1, 43, data_points) where N is the number of epochs
+
+            self.data = data.astype('float32')  # Your EEG data, shaped (N, 1, channels, data_points) where N is the number of epochs
             self.data = torch.from_numpy(self.data)
-            self.data = self.data.unsqueeze(0)
-            self.data = self.data.to('cuda')
+            self.data = self.data.unsqueeze(1)
             self.labels = labels.astype('float')
             self.labels = torch.from_numpy(labels)  # Corresponding labels for each epoch
-        
-            self.labels = self.labels.to('cuda')
 
+            CUDA = torch.cuda.is_available()
+            if CUDA:
+                self.labels = self.labels.to('cuda')
+                self.data = self.data.to('cuda')
         def __len__(self):
             return len(self.data)
 
@@ -130,8 +152,37 @@ def create_dataset(epochs_concat, labels, lggnet_params=None):
           
     epochs_concat = epochs_concat.astype(float)
     dataset = EEGDataset(epochs_concat, labels)
-    dataset.data = dataset.data.reshape(lggnet_params['number_trials_per_class']*2,1,lggnet_params['number_of_channels'], lggnet_params['input_length'])
+    if threeD:
+        dataset.data = dataset.data.reshape(lggnet_params['number_trials_per_class']*2,3, int(lggnet_params['number_of_channels']/3), lggnet_params['input_length'])
+        dataset.data = dataset.data.unsqueeze(2)
+    
+    else:
+        dataset.data = dataset.data.reshape(lggnet_params['number_trials_per_class']*2,1,lggnet_params['number_of_channels'], lggnet_params['input_length'])
+    
+    print("Shape of the dataset:",dataset.data.shape)
 
     return dataset
 
 
+def rearrange_channels(raw_combined, mapping):
+
+    # Extract EEG, HBO, and HBR channels
+    picks = mne.pick_types(raw_combined.info, eeg=True, fnirs=False, stim=False)
+    eeg_channels = raw_combined.info.ch_names[:16]
+    hbo_channels = raw_combined.info.ch_names[16:30]
+    hbr_channels = raw_combined.info.ch_names[30:]
+
+    # Rearrange HBO and HBR channels
+    rearranged_hbo = [hbo_channels[i - 1] for i in mapping]
+    rearranged_hbr = [hbr_channels[i - 1] for i in mapping]
+
+    # Combined rearranged channels
+    rearranged_channels = eeg_channels + rearranged_hbo + rearranged_hbr
+
+    print(rearranged_channels)
+
+    raw_combined_rearranged = raw_combined.copy().reorder_channels(rearranged_channels)
+    # Check the new order of channels
+    print(raw_combined_rearranged.info.ch_names)
+    
+    return raw_combined_rearranged
