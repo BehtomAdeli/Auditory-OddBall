@@ -13,9 +13,9 @@ import functions as fn
 from EEG_fNIRS_Info import EEG_fNIRS_Info
 import midfunctions as mf
 
-eeg_dir = 'C:\\Users\\behtu\\URI_Backup\\1.NeuroLab\Database\\Auditory Oddball Data\\Shared_Oddball_Raw\\Mat Files\\HSO_00\\'
-hbr_address= 'C:\\Users\\behtu\\URI_Backup\\1.NeuroLab\\Database\\Auditory Oddball Data\\Shared_Oddball_Raw\\H_SO_00\\All_DeOx'
-hbo_address= 'C:\\Users\\behtu\\URI_Backup\\1.NeuroLab\\Database\\Auditory Oddball Data\\Shared_Oddball_Raw\\H_SO_00\\All_Ox'
+eeg_dir = 'eeg dir'
+hbr_address= 'hbr dir'
+hbo_address= 'hbo dir'
 
 eeg_ch_numbers = [0,15] #Column numbers for the EEG data
 eeg_fs = 256  # Sample rate, Hz
@@ -186,3 +186,4 @@ class LabelSmoothing(nn.Module):
             smooth_loss = -logprobs.mean(dim=-1)
             loss = self.confidence * nll_loss + self.smoothing * smooth_loss
             return loss.mean()
+
