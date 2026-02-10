@@ -21,9 +21,9 @@ Behtom Adeli, 2024 URI
 """
 
 # Directory containing the EEG and fNIRS data
-eeg_dir = 'C:\\Users\\behtu\\URI_Backup\\1.NeuroLab\Database\\Auditory Oddball Data\\Shared_Oddball_Raw\\Mat Files\\HSO_00\\'
-hbr_address= 'C:\\Users\\behtu\\URI_Backup\\1.NeuroLab\\Database\\Auditory Oddball Data\\Shared_Oddball_Raw\\H_SO_00\\All_DeOx'
-hbo_address= 'C:\\Users\\behtu\\URI_Backup\\1.NeuroLab\\Database\\Auditory Oddball Data\\Shared_Oddball_Raw\\H_SO_00\\All_Ox'
+eeg_dir = 'C:\\Users\\ eeg folder'
+hbr_address= 'C:\\Users\\hbr folder'
+hbo_address= 'C:\\Users\\ hbo folder'
  #EEG channel names
 eeg_ch_names = ['Fpz','AFz','F5','F6','FCz','FC3','FC4','Cz','C5','C6','TTP7','TTP8','TPP7','TPP8','Pz']
 fnirs_ch_names =['S1_D1','S2_D1', 'S2_D2', 'S3_D2', 'S4_D3', 'S4_D4', 'S4_D5', 'S5_D4', 'S5_D5', 'S6_D6', 'S6_D7','S6_D8', 'S7_D7','S7_D8']
@@ -45,7 +45,8 @@ info_ef = EEG_fNIRS_Info(eeg_dir= eeg_dir, eeg_ch_names= eeg_ch_names, eeg_ch_nu
 
 raw_combined = mf.import_data(info=info_ef)
 
-save_dir = 'C:\\Users\\behtu\\URI_Backup\\1.NeuroLab\Database\\Auditory Oddball Data\\Shared_Oddball_Raw\\Mat Files\\HSO_00\\'
+save_dir = 'C:\\Users\\save folder'
 save_name = 'MNE_ica01excluded.fif'
 
 raw_combined.save(save_dir+save_name, overwrite=True)
+
