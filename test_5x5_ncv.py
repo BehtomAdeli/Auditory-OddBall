@@ -5,7 +5,7 @@ import netfunctions as nf
 from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, Subset
 
-raw_combined = mne.io.read_raw_fif('C:\\Users\\behtu\\URI_Backup\\1.NeuroLab\Database\\Auditory Oddball Data\\Shared_Oddball_Raw\\Mat Files\\MNE_ica01excluded-All.fif', preload=True)
+raw_combined = mne.io.read_raw_fif('C:\\Users\\\ data.fif', preload=True)
 
 event_id = dict(deviant40=2,standard1k=1)
 mapping={2:'deviant40',1:'standard1k'}
@@ -91,4 +91,5 @@ print(f'Average Val Acc: {avg_val_acc / num_folds}%')
 print(f'Average Test Loss: {ave_test_loss / num_folds}')
 print(f'Average Test Acc: {avg_test_acc / num_folds}%')
 print('--------------------------------')
+
 print('--------------------------------')
